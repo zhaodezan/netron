@@ -94,9 +94,8 @@ hdf5.Group = class {
             }
         }
         else {
-            const group = this._groupMap[path];
-            if (group) {
-                return group;
+            if (this._groups.has(path)) {
+                return this._groups.get(path);
             }
         }
         return null;
@@ -105,11 +104,6 @@ hdf5.Group = class {
     get groups() {
         this._decodeGroups();
         return this._groups;
-    }
-
-    attribute(name) {
-        this._decodeDataObject();
-        return this._attributes[name];
     }
 
     get attributes() {
@@ -127,11 +121,11 @@ hdf5.Group = class {
             this._dataObjectHeader = new hdf5.DataObjectHeader(this._reader.at(this._entry.objectHeaderAddress));
         }
         if (!this._attributes) {
-            this._attributes = {};
+            this._attributes = new Map();
             for (const attribute of this._dataObjectHeader.attributes) {
                 const name = attribute.name;
                 const value = attribute.decodeValue(this._globalHeap);
-                this._attributes[name] = value;
+                this._attributes.set(name, value);
             }
             this._value = null;
             const datatype = this._dataObjectHeader.datatype;
@@ -146,8 +140,7 @@ hdf5.Group = class {
 
     _decodeGroups() {
         if (!this._groups) {
-            this._groupMap = {};
-            this._groups = [];
+            this._groups = new Map();
             if (this._entry) {
                 if (this._entry.treeAddress || this._entry.heapAddress) {
                     const heap = new hdf5.Heap(this._reader.at(this._entry.heapAddress));
@@ -156,8 +149,7 @@ hdf5.Group = class {
                         for (const entry of node.entries) {
                             const name = heap.getString(entry.linkNameOffset);
                             const group = new hdf5.Group(this._reader, entry, null, this._globalHeap, this._path, name);
-                            this._groups.push(group);
-                            this._groupMap[name] = group;
+                            this._groups.set(name, group);
                         }
                     }
                 }
@@ -169,8 +161,7 @@ hdf5.Group = class {
                         const name = link.name;
                         const objectHeader = new hdf5.DataObjectHeader(this._reader.at(link.objectHeaderAddress));
                         const linkGroup = new hdf5.Group(this._reader, null, objectHeader, this._globalHeap, this._path, name);
-                        this._groups.push(linkGroup);
-                        this._groupMap[name] = linkGroup;
+                        this._groups.set(name, linkGroup);
                     }
                 }
             }
@@ -943,6 +934,8 @@ hdf5.Datatype = class {
                 throw new hdf5.Error('Unsupported character encoding.');
             case 5: // opaque
                 return reader.read(this._size);
+            case 8: // enumerated
+                return reader.read(this._size);
             case 9: // variable-length
                 return {
                     length: reader.uint32(),
@@ -961,6 +954,8 @@ hdf5.Datatype = class {
             case 3: // string
                 return data;
             case 5: // opaque
+                return data;
+            case 8: // enumerated
                 return data;
             case 9: { // variable-length
                 const globalHeapObject = globalHeap.get(data.globalHeapID);
