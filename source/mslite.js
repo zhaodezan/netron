@@ -112,9 +112,18 @@ mslite.Graph = class {
                 const index = subgraph.inputIndices[i];
                 this._inputs.push(new mslite.Parameter(i.toString(), true, [args[index]]));
             }
-            for (let i = 0; i < subgraph.outputIndices.length; i++) {
-                const index = subgraph.outputIndices[i];
-                this._outputs.push(new mslite.Parameter(i.toString(), true, [args[index]]));
+            var isMain = subgraph.name.search("main_graph");
+            if (isMain != -1) {
+                for (let i = 0; i < model.outputIndex.length; i++) {
+                    const index = model.outputIndex[i];
+                    this._outputs.push(new mslite.Parameter(i.toString(), true, [args[index]]));
+                }
+            }
+            else {
+                for (let i = 0; i < subgraph.outputIndices.length; i++) {
+                    const index = subgraph.outputIndices[i];
+                    this._outputs.push(new mslite.Parameter(i.toString(), true, [args[index]]));
+                }
             }
             for (let i = 0; i < subgraph.nodeIndices.length; i++) {
                 const nodeId = subgraph.nodeIndices[i];
